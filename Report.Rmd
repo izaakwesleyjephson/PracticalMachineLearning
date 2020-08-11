@@ -1,0 +1,78 @@
+---
+title: "Human Activity Recognition"
+author: "Izaak Jephson"
+date: "11/08/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(caret)
+library(lubridate)
+```
+
+## Introduction
+
+
+
+## Data
+```{r read}
+
+## Read in and tidy data
+
+training <- read.csv(file = "data/pml-training.csv") %>%
+        as_tibble() %>% 
+        mutate_all(
+                .funs = function(x)
+                        replace(x, which(x == "" | x == "#DIV/0!"), NA) # manually replace missing values to ensure no useful data lost in tidying
+        ) %>%
+        mutate_at(vars(
+                -c(X,
+                   user_name,
+                   cvtd_timestamp,
+                   new_window,
+                   num_window,
+                   classe) 
+        ), as.numeric) %>% # convert features to numeric variables
+        mutate_at("classe", as_factor) %>% 
+        mutate_at("cvtd_timestamp", dmy_hm) %>% 
+        select_if(function(x) !(all(is.na(x))))
+
+
+testing <- read.csv(file = "data/pml-testing.csv") %>% # apply same tidying to testing set
+        as_tibble() %>% 
+        mutate_all(
+                .funs = function(x)
+                        replace(x, which(x == "" | x == "#DIV/0!"), NA) # manually replace missing values to ensure no useful data lost in tidying
+        ) %>%
+        mutate_at(vars(
+                -c(X,
+                   user_name,
+                   cvtd_timestamp,
+                   new_window,
+                   num_window,
+                   problem_id) 
+        ), as.numeric) %>% # convert features to numeric variables
+        mutate_at("cvtd_timestamp", dmy_hm) %>% 
+        select_if(function(x) !(all(is.na(x))))
+
+```
+
+## Inital data exploration
+
+```{r explore}
+
+
+```
+
+
+
+
+## Citations
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+Read more: http:/groupware.les.inf.puc-rio.br/har#ixzz4Tk2YB4Ft
+
