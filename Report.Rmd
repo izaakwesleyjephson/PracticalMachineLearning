@@ -7,22 +7,32 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(tidyverse)
-library(ggplot2)
-library(caret)
-library(lubridate)
+library("tidyverse")
+library("ggplot2")
+library("caret")
+library("lubridate")
+library("rattle")
+library("doParallel")
+library("randomForest")
+library("scales")
+library("corrplot")
 ```
 
 ## Introduction
 
-
-
 ## Data
+This data set was provided by Velloso, E., Bulling, A., Gellersen, H., Ugulino, W., Fuks, H.
+
+In this study, six participants were asked to perform one set of 10 repetitions of the unilateral dumbbell biceps curl in five different ways, according to a  specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+
 ```{r read}
 
 ## Read in and tidy data
 
-training <- read.csv(file = "data/pml-training.csv") %>%
+rawData <- read.csv(file = "data/pml-training.csv") 
+
+data <- rawData%>%
         as_tibble() %>% 
         mutate_all(
                 .funs = function(x)
@@ -38,10 +48,18 @@ training <- read.csv(file = "data/pml-training.csv") %>%
         ), as.numeric) %>% # convert features to numeric variables
         mutate_at("classe", as_factor) %>% 
         mutate_at("cvtd_timestamp", dmy_hm) %>% 
-        select_if(function(x) !(all(is.na(x))))
+        select_if(function(x) (mean(is.na(x))) < 0.9) %>% # remove rows with no data
+        select(-c("user_name",
+                  "X",
+                  "raw_timestamp_part_1",
+                  "raw_timestamp_part_2",
+                  "cvtd_timestamp",
+                  "new_window",
+                  "num_window"))
 
+rawFinalTest <- read.csv(file = "data/pml-testing.csv")
 
-testing <- read.csv(file = "data/pml-testing.csv") %>% # apply same tidying to testing set
+finalTest <- rawFinalTest %>% # apply same tidying to testing set
         as_tibble() %>% 
         mutate_all(
                 .funs = function(x)
@@ -56,21 +74,87 @@ testing <- read.csv(file = "data/pml-testing.csv") %>% # apply same tidying to t
                    problem_id) 
         ), as.numeric) %>% # convert features to numeric variables
         mutate_at("cvtd_timestamp", dmy_hm) %>% 
-        select_if(function(x) !(all(is.na(x))))
+        select_if(function(x) (mean(is.na(x))) < 0.9)
 
 ```
 
 ## Inital data exploration
 
-```{r explore}
+In our data, there are `r data %>% nrow()` observations and `r data %>% ncol()` variables. the variable that we are interested in predicting is the "classe" variable, which is a factor variable with 5 levels (A, B, C, D, E), each of which represents a different way in which the exercise was performed. 
+
+```{r slice}
+
+# Create data partition and split data into training and test data in order to be able to estimate out of sample error
+
+inTrain <- data %>% pull(classe) %>% createDataPartition(p = 0.75, list = FALSE) 
+
+training <- data %>% slice(inTrain)
+testing <- data %>% slice(-inTrain)
+
+```
+
+
+```{r correlation}
+
+training %>% select(-classe) %>% cor() %>% corrplot(method = "color",type = "upper", order = "FPC", tl.cex = 0.5)
+
+trainingPC <- training %>% select(-classe) %>% preProcess(method = "pca", pcaComp = 10) %>% predict(training %>% select(-classe))
+
+trainingPC %>% cor() %>% corrplot(method = "color",type = "upper", order = "FPC", tl.cex = 0.5)
 
 
 ```
 
 
+```{r tree}
+
+# Fit a decision tree to the data 
+
+set.seed(2572)
+model1 <- train(classe ~ ., data = training, na.action = na.pass, method = "rpart", trControl = trainControl(method = "cv", number = 10))
+fancyRpartPlot(model1$finalModel, cex = 0.6, sub = "")
+
+predict1 <- predict(model1, testing)
+
+confMat1 <- confusionMatrix(testing %>% pull(classe), predict1)
+
+```
+
+The accuracy of the decision tree model on the test set is `r confMat1$overall["Accuracy"] %>% percent()` and the out of sample error rate is `r (1 - confMat1$overall["Accuracy"]) %>% percent()` 
 
 
-## Citations
+```{r forest, cache = TRUE}
+
+set.seed(591)
+
+model2 <- train(classe ~ ., data = training, na.action = na.pass, method = "rf", trControl = trainControl(method = "cv", number = 10))
+
+predict2 <- predict(model2, testing)
+
+confMat2 <- confusionMatrix(testing %>% pull(classe), predict2)
+
+
+```
+
+The accuracy of the random forest model on the test set is `r confMat2$overall["Accuracy"] %>% percent()` and the out of sample error rate is `r (1 - confMat2$overall["Accuracy"]) %>% percent()` 
+
+```{r regression}
+
+set.seed(70333)
+
+model3 <- train(classe ~ ., data = training, na.action = na.omit, method = "treebag", trControl = trainControl(method = "cv", number = 10))
+
+predict3 <- predict(model3, testing)
+
+confMat3 <- confusionMatrix(testing %>% pull(classe), predict3)
+
+
+```
+
+
+The accuracy of the bagged tree model on the test set is `r confMat3$overall["Accuracy"] %>% percent()` and the out of sample error rate is `r (1 - confMat3$overall["Accuracy"]) %>% percent()` 
+
+## References
 
 Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
 
