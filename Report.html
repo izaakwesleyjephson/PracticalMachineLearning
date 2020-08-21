@@ -11,7 +11,6 @@
 
 <meta name="author" content="Izaak Jephson" />
 
-<meta name="date" content="2020-11-08" />
 
 <title>Human Activity Recognition</title>
 
@@ -365,7 +364,7 @@ summary {
 
 <h1 class="title toc-ignore">Human Activity Recognition</h1>
 <h4 class="author">Izaak Jephson</h4>
-<h4 class="date">11/08/2020</h4>
+<h4 class="date">21/08/2020</h4>
 
 </div>
 
@@ -373,11 +372,11 @@ summary {
 <div id="introduction" class="section level2">
 <h2>Introduction</h2>
 <p>Monitoring and assessing human activity automatically is a growing field as shown by the prevalence of fitness tracking apps such as Google Fit and wearable tech such as FitBit. Much of the research in this field focuses on assessing what activity is being undertaken, rather than how well it was performed. This analysis uses data from the study “Qualitative Activity Recognition of Weight Lifting Exercises”. <span class="citation">Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. (2013)</span></p>
-<p>3 models were fitted to the data, a simple decision tree model, a random forest model and a bagged tree model. In each case 10-fold cross validation was used. The simple tree model performed poorly, with an out of sample error rate 0f 51%. The random forest model and bagged tree model both performed better with out-of-sample errors rates of 1% and 2% respectively, though this increased accuracy comes at the price of increased computing time and reduced interpretability.</p>
-</div>
-<div id="data" class="section level2">
-<h2>Data</h2>
 <p>In this study, six participants were asked to perform one set of 10 repetitions of the unilateral dumbbell biceps curl in five different ways, according to a specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).</p>
+<p>3 models were fitted to the data in order to predict the class of exercise; a simple decision tree model, a random forest model and a bagged tree model. In each case 10-fold cross validation was used. The simple tree model performed poorly, with an out of sample error rate 0f 51%. The random forest model and bagged tree model both performed better with out-of-sample errors rates of 1% and 2% respectively, though this increased accuracy comes at the price of increased computing time and reduced interpretability.</p>
+</div>
+<div id="data-import" class="section level2">
+<h2>Data import</h2>
 <p>Firstly, the data is imported and tidied. Any variables with more than 95% missing values were discarded as these do not contain enough information to be a useful and reliable predictor.</p>
 <pre class="r"><code>## Read in and tidy data
 
@@ -440,58 +439,58 @@ testing &lt;- data %&gt;% slice(-inTrain)
 
 nearZeroVar(training, saveMetrics = TRUE)</code></pre>
 <pre><code>##                      freqRatio percentUnique zeroVar   nzv
-## roll_belt             1.141618    7.66927830   FALSE FALSE
-## pitch_belt            1.102041   11.03891968   FALSE FALSE
-## yaw_belt              1.014354   11.78419008   FALSE FALSE
-## total_accel_belt      1.072856    0.17835531   FALSE FALSE
-## gyros_belt_x          1.064755    0.84718772   FALSE FALSE
-## gyros_belt_y          1.138192    0.41403911   FALSE FALSE
-## gyros_belt_z          1.051700    1.03828269   FALSE FALSE
-## accel_belt_x          1.037829    1.01917320   FALSE FALSE
-## accel_belt_y          1.130363    0.88540671   FALSE FALSE
-## accel_belt_z          1.040172    1.87273075   FALSE FALSE
-## magnet_belt_x         1.106762    1.98738773   FALSE FALSE
-## magnet_belt_y         1.116700    1.83451175   FALSE FALSE
-## magnet_belt_z         1.045822    2.80272629   FALSE FALSE
-## roll_arm             49.870370   15.95643035   FALSE FALSE
-## pitch_arm            86.903226   18.49162367   FALSE FALSE
-## yaw_arm              34.088608   17.30046500   FALSE FALSE
-## total_accel_arm       1.034626    0.41403911   FALSE FALSE
-## gyros_arm_x           1.007371    4.03210396   FALSE FALSE
-## gyros_arm_y           1.459854    2.35046818   FALSE FALSE
-## gyros_arm_z           1.134328    1.54149946   FALSE FALSE
-## accel_arm_x           1.036496    4.90477100   FALSE FALSE
-## accel_arm_y           1.092486    3.36327155   FALSE FALSE
-## accel_arm_z           1.100000    4.91114084   FALSE FALSE
-## magnet_arm_x          1.014286    8.47187719   FALSE FALSE
-## magnet_arm_y          1.040541    5.50353526   FALSE FALSE
-## magnet_arm_z          1.056180    8.00050959   FALSE FALSE
-## roll_dumbbell         1.050505   85.64239760   FALSE FALSE
-## pitch_dumbbell        2.595960   83.48939423   FALSE FALSE
-## yaw_dumbbell          1.042105   85.07548251   FALSE FALSE
-## total_accel_dumbbell  1.070513    0.27390280   FALSE FALSE
-## gyros_dumbbell_x      1.022312    1.52238996   FALSE FALSE
-## gyros_dumbbell_y      1.252119    1.73259443   FALSE FALSE
-## gyros_dumbbell_z      1.061856    1.26122683   FALSE FALSE
-## accel_dumbbell_x      1.007576    2.65622014   FALSE FALSE
-## accel_dumbbell_y      1.115789    2.91101344   FALSE FALSE
-## accel_dumbbell_z      1.138462    2.56067265   FALSE FALSE
-## magnet_dumbbell_x     1.125000    6.94311740   FALSE FALSE
-## magnet_dumbbell_y     1.150000    5.27422129   FALSE FALSE
-## magnet_dumbbell_z     1.006623    4.24867826   FALSE FALSE
-## roll_forearm         11.714286   12.68233645   FALSE FALSE
-## pitch_forearm        63.571429   17.49155997   FALSE FALSE
-## yaw_forearm          14.551402   11.74597108   FALSE FALSE
-## total_accel_forearm   1.149899    0.43314861   FALSE FALSE
-## gyros_forearm_x       1.056471    1.81540225   FALSE FALSE
-## gyros_forearm_y       1.029801    4.63086821   FALSE FALSE
-## gyros_forearm_z       1.158730    1.91094974   FALSE FALSE
-## accel_forearm_x       1.115942    5.00031849   FALSE FALSE
-## accel_forearm_y       1.011905    6.30613415   FALSE FALSE
-## accel_forearm_z       1.082645    3.59895535   FALSE FALSE
-## magnet_forearm_x      1.147541    9.40824256   FALSE FALSE
-## magnet_forearm_y      1.214286   11.77145041   FALSE FALSE
-## magnet_forearm_z      1.063830   10.42104593   FALSE FALSE
+## roll_belt             1.091794    7.52914198   FALSE FALSE
+## pitch_belt            1.045161   11.12172750   FALSE FALSE
+## yaw_belt              1.085919   11.78419008   FALSE FALSE
+## total_accel_belt      1.055708    0.17835531   FALSE FALSE
+## gyros_belt_x          1.012456    0.85355755   FALSE FALSE
+## gyros_belt_y          1.152795    0.42677878   FALSE FALSE
+## gyros_belt_z          1.091106    1.05739219   FALSE FALSE
+## accel_belt_x          1.089431    1.03828269   FALSE FALSE
+## accel_belt_y          1.140234    0.89177655   FALSE FALSE
+## accel_belt_z          1.053597    1.86636091   FALSE FALSE
+## magnet_belt_x         1.048611    1.96190840   FALSE FALSE
+## magnet_belt_y         1.087379    1.86636091   FALSE FALSE
+## magnet_belt_z         1.042667    2.80909612   FALSE FALSE
+## roll_arm             51.055556   15.98190968   FALSE FALSE
+## pitch_arm            86.187500   18.46614434   FALSE FALSE
+## yaw_arm              32.821429   17.37053315   FALSE FALSE
+## total_accel_arm       1.023644    0.42040894   FALSE FALSE
+## gyros_arm_x           1.078818    4.05758329   FALSE FALSE
+## gyros_arm_y           1.459716    2.35683802   FALSE FALSE
+## gyros_arm_z           1.148780    1.52238996   FALSE FALSE
+## accel_arm_x           1.015038    4.91751067   FALSE FALSE
+## accel_arm_y           1.171598    3.38238104   FALSE FALSE
+## accel_arm_z           1.057143    4.94299000   FALSE FALSE
+## magnet_arm_x          1.014706    8.49098669   FALSE FALSE
+## magnet_arm_y          1.130435    5.51627492   FALSE FALSE
+## magnet_arm_z          1.043956    8.02598892   FALSE FALSE
+## roll_dumbbell         1.017699   85.83986241   FALSE FALSE
+## pitch_dumbbell        2.243478   83.43843557   FALSE FALSE
+## yaw_dumbbell          1.223404   84.94808587   FALSE FALSE
+## total_accel_dumbbell  1.076568    0.27390280   FALSE FALSE
+## gyros_dumbbell_x      1.018595    1.50328046   FALSE FALSE
+## gyros_dumbbell_y      1.254777    1.72622460   FALSE FALSE
+## gyros_dumbbell_z      1.107527    1.27396649   FALSE FALSE
+## accel_dumbbell_x      1.088803    2.66258997   FALSE FALSE
+## accel_dumbbell_y      1.009804    2.91738327   FALSE FALSE
+## accel_dumbbell_z      1.143617    2.58615198   FALSE FALSE
+## magnet_dumbbell_x     1.014085    6.93037773   FALSE FALSE
+## magnet_dumbbell_y     1.186667    5.27422129   FALSE FALSE
+## magnet_dumbbell_z     1.026490    4.25504809   FALSE FALSE
+## roll_forearm         11.242754   12.71418562   FALSE FALSE
+## pitch_forearm        64.645833   17.51703930   FALSE FALSE
+## yaw_forearm          15.907692   11.71412192   FALSE FALSE
+## total_accel_forearm   1.130699    0.44588827   FALSE FALSE
+## gyros_forearm_x       1.037383    1.83451175   FALSE FALSE
+## gyros_forearm_y       1.032468    4.64997771   FALSE FALSE
+## gyros_forearm_z       1.155080    1.88547041   FALSE FALSE
+## accel_forearm_x       1.026316    4.96209950   FALSE FALSE
+## accel_forearm_y       1.186667    6.32524365   FALSE FALSE
+## accel_forearm_z       1.015748    3.60532518   FALSE FALSE
+## magnet_forearm_x      1.000000    9.42098223   FALSE FALSE
+## magnet_forearm_y      1.292308   11.75871075   FALSE FALSE
+## magnet_forearm_z      1.041667   10.42104593   FALSE FALSE
 ## classe                1.469388    0.03184916   FALSE FALSE</code></pre>
 </div>
 <div id="model-fitting" class="section level2">
@@ -515,7 +514,7 @@ toc()</code></pre>
 <pre class="r"><code>predict1 &lt;- predict(model1, testing)
 
 confMat1 &lt;- confusionMatrix(testing %&gt;% pull(classe), predict1)</code></pre>
-<p>The accuracy of the decision tree model on the test set is 49% and the out of sample error rate is 51%</p>
+<p>The accuracy of the decision tree model on the test set is 49% and the out of sample error rate is 51%.</p>
 </div>
 <div id="random-forest" class="section level3">
 <h3>Random forest</h3>
