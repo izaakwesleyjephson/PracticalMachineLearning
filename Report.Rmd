@@ -3,6 +3,7 @@ title: "Human Activity Recognition"
 author: "Izaak Jephson"
 date: "11/08/2020"
 output: html_document
+bibliography: biblio.bib 
 ---
 
 ```{r setup, include=FALSE}
@@ -16,17 +17,22 @@ library("doParallel")
 library("randomForest")
 library("scales")
 library("corrplot")
+library("tictoc")
 ```
 
 ## Introduction
 
-## Data
-This data set was provided by Velloso, E., Bulling, A., Gellersen, H., Ugulino, W., Fuks, H.
+Monitoring and assessing human activity automatically is a growing field as shown by the prevalence of fitness tracking apps such as Google Fit and wearable tech such as FitBit. Much of the research in this field focuses on assessing what activity is being undertaken, rather than how well it was performed. This analysis uses data from the study "Qualitative Activity Recognition of Weight Lifting Exercises". @velloso
 
 In this study, six participants were asked to perform one set of 10 repetitions of the unilateral dumbbell biceps curl in five different ways, according to a  specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
 
+3 models were fitted to the data in order to predict the class of exercise; a simple decision tree model, a random forest model and a bagged tree model. In each case 10-fold cross validation was used. The simple tree model performed poorly, with an out of sample error rate 0f 51%. The random forest model and bagged tree model both performed better with out-of-sample errors rates of 1% and 2% respectively, though this increased accuracy comes at the price of increased computing time and reduced interpretability.
 
-```{r read}
+## Data import
+
+Firstly, the data is imported and tidied. Any variables with more than 95% missing values were discarded as these do not contain enough information to be a useful and reliable predictor.
+
+```{r read, cache = TRUE}
 
 ## Read in and tidy data
 
@@ -48,7 +54,7 @@ data <- rawData%>%
         ), as.numeric) %>% # convert features to numeric variables
         mutate_at("classe", as_factor) %>% 
         mutate_at("cvtd_timestamp", dmy_hm) %>% 
-        select_if(function(x) (mean(is.na(x))) < 0.9) %>% # remove rows with no data
+        select_if(function(x) (mean(is.na(x))) < 0.95) %>% # remove rows with no data
         select(-c("user_name",
                   "X",
                   "raw_timestamp_part_1",
@@ -74,27 +80,31 @@ finalTest <- rawFinalTest %>% # apply same tidying to testing set
                    problem_id) 
         ), as.numeric) %>% # convert features to numeric variables
         mutate_at("cvtd_timestamp", dmy_hm) %>% 
-        select_if(function(x) (mean(is.na(x))) < 0.9)
+        select_if(function(x) (mean(is.na(x))) < 0.95)
 
 ```
 
-## Inital data exploration
+## Inital data exploration and variable selection
 
-In our data, there are `r data %>% nrow()` observations and `r data %>% ncol()` variables. the variable that we are interested in predicting is the "classe" variable, which is a factor variable with 5 levels (A, B, C, D, E), each of which represents a different way in which the exercise was performed. 
+In the data, there are `r data %>% nrow()` observations and `r data %>% ncol()` variables. the variable that we are interested in predicting is the "classe" variable, which is a factor variable with 5 levels (A, B, C, D, E), each of which represents a different way in which the exercise was performed. A test for Variables with near zero variance was carried out to determine whether any variables can be discarded. All variables showed an adequate degree of variance to be included in the analysis.
+
+The data was divided into a training and test set, with the ratio 80:20. The test set was set aside for later use in determining the out-of-sample error rate for each model.
 
 ```{r slice}
 
 # Create data partition and split data into training and test data in order to be able to estimate out of sample error
 
-inTrain <- data %>% pull(classe) %>% createDataPartition(p = 0.75, list = FALSE) 
+inTrain <- data %>% pull(classe) %>% createDataPartition(p = 0.80, list = FALSE) 
 
 training <- data %>% slice(inTrain)
 testing <- data %>% slice(-inTrain)
 
+nearZeroVar(training, saveMetrics = TRUE)
+
 ```
 
 
-```{r correlation}
+```{r correlation, eval = FALSE, echo = FALSE}
 
 training %>% select(-classe) %>% cor() %>% corrplot(method = "color",type = "upper", order = "FPC", tl.cex = 0.5)
 
@@ -102,16 +112,29 @@ trainingPC <- training %>% select(-classe) %>% preProcess(method = "pca", pcaCom
 
 trainingPC %>% cor() %>% corrplot(method = "color",type = "upper", order = "FPC", tl.cex = 0.5)
 
-
 ```
 
 
-```{r tree}
+## Model fitting
+
+### Decision tree
+
+The aim of our target model is to use the features in the data to predict the class of exercise (the "classe" variable). As the class is a categoric variable, a good model to start with might be a decision tree. This model has the advantage of being simple to interpret. 
+
+A decision tree model was fit to the data, using 10 fold cross-validation. The resulting model is show below.
+
+```{r tree, cache = TRUE}
 
 # Fit a decision tree to the data 
 
 set.seed(2572)
+
+tic("decision tree")
+
 model1 <- train(classe ~ ., data = training, na.action = na.pass, method = "rpart", trControl = trainControl(method = "cv", number = 10))
+
+toc()
+
 fancyRpartPlot(model1$finalModel, cex = 0.6, sub = "")
 
 predict1 <- predict(model1, testing)
@@ -120,14 +143,21 @@ confMat1 <- confusionMatrix(testing %>% pull(classe), predict1)
 
 ```
 
-The accuracy of the decision tree model on the test set is `r confMat1$overall["Accuracy"] %>% percent()` and the out of sample error rate is `r (1 - confMat1$overall["Accuracy"]) %>% percent()` 
+The accuracy of the decision tree model on the test set is `r confMat1$overall["Accuracy"] %>% percent()` and the out of sample error rate is `r (1 - confMat1$overall["Accuracy"]) %>% percent()`.
 
+### Random forest
+
+As the decision tree had a poor accuracy, a more complex model might be a better fit to the data. A random forest model was fitted to the data using 10-fold cross validation.
 
 ```{r forest, cache = TRUE}
 
 set.seed(591)
 
+tic("random forest")
+
 model2 <- train(classe ~ ., data = training, na.action = na.pass, method = "rf", trControl = trainControl(method = "cv", number = 10))
+
+toc()
 
 predict2 <- predict(model2, testing)
 
@@ -138,11 +168,20 @@ confMat2 <- confusionMatrix(testing %>% pull(classe), predict2)
 
 The accuracy of the random forest model on the test set is `r confMat2$overall["Accuracy"] %>% percent()` and the out of sample error rate is `r (1 - confMat2$overall["Accuracy"]) %>% percent()` 
 
-```{r regression}
+
+### Bagged tree
+
+An alternative the the random forest model is the bagged tree model. A bagged tree model was fitted to the data using 10-fold cross validation.
+
+```{r bagged_tree, cache = TRUE}
 
 set.seed(70333)
 
+tic("bagged tree")
+
 model3 <- train(classe ~ ., data = training, na.action = na.omit, method = "treebag", trControl = trainControl(method = "cv", number = 10))
+
+toc()
 
 predict3 <- predict(model3, testing)
 
@@ -154,9 +193,13 @@ confMat3 <- confusionMatrix(testing %>% pull(classe), predict3)
 
 The accuracy of the bagged tree model on the test set is `r confMat3$overall["Accuracy"] %>% percent()` and the out of sample error rate is `r (1 - confMat3$overall["Accuracy"]) %>% percent()` 
 
+## Conclusions
+
+The random forest and bagged tree models both perform very well on this data set, with very low out-of-sample error rates. A simple decision tree model does not appear to be sufficient in sorting the classes of exercises, as the error rate of 51% is very high. 
+
+However, the drawback of the more complex models is that they require much longer to fit. The decision tree is very quick to fit at only 7 seconds, while the bagged tree model takes almost 2 minutes to fit and the random forest model takes around 19 minutes to fit.
+
+On balance, if computing resources are not an issue, then the random model provides the best accuracy in this case, but the bagged tree model provides a balance between high accuracy and high speed of fitting.
+
 ## References
-
-Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
-
-Read more: http:/groupware.les.inf.puc-rio.br/har#ixzz4Tk2YB4Ft
 
